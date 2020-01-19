@@ -1,0 +1,124 @@
+// These must be hard interrupt capable
+#define A0PIN 11
+#define A1PIN 12
+#define A2PIN 13
+#define AEPIN 10
+
+// These are 'digitalPin' numbers
+// the ISR sets enable, then the main loop 
+// notices and sends steps to that device
+unsigned char ena[] = {6 , 0,0,0,0,0,0,0};
+
+#define ASPIN 6
+#define ASINPORT PIND
+#define ASBIT 6
+
+#define ADPIN 8
+#define ADINPORT PINB
+#define ADBIT 0
+
+# this is RAMPS X
+#define S0EPIN 6
+#define S0EINPORT PIND
+#define S0EOUTPORT PORTD
+#define S0EBIT 5
+
+#define S0SPIN 7
+#define S0SOUTPORT PORTD
+#define S0SBIT 7
+
+#define S0DPIN 9
+#define S0DOUTPORT PORTB
+#define S0DBIT 1
+
+#define CLEAR(z) z ## OUTPORT &= 255 - (1 << x ## BIT) ;
+#define SET(z) z ## OUTPORT |= 1 << x ## BIT ;
+
+#define STEPIT(x,y) if (x ## INPORT & 1 << x ## BIT  ) {SET(y) } else { CLEAR(y) };
+#define SETUPPIN(x) pinMode(x ## EPIN, OUTPUT);pinMode(x ## SPIN, OUTPUT);pinMode(x ## DPIN, OUTPUT); 
+
+// These must be hard interrupt capable
+#define A0PIN 11
+#define A1PIN 12
+#define A2PIN 13
+#define AEPIN 10
+
+// These are 'digitalPin' numbers
+// the ISR sets enable, then the main loop 
+// notices and sends steps to that device
+const unsigned char pinfo[][] = 
+{ // S0
+    { 38 , PIND , PORTD, 7 , A0, PORTF, 0 ,A1,PORTF,1}
+
+
+
+}
+#define EPIN 0
+#define EINPORT 1
+#define EOUTPORT 2
+#define EBIT 3
+#define SPIN 4
+#define SOUTPORT 5
+#define SOUTBIT 6
+#define DPIN 7
+#define DOUTPORT 8
+#define DOUTBIT 9
+
+
+#define ASPIN 6
+#define ASINPORT PIND
+#define ASBIT 6
+
+#define ADPIN 8
+#define ADINPORT PINB
+#define ADBIT 0
+
+// RAMPS X 
+#define S0EPIN 38
+#define S0EINPORT PIND
+#define S0EOUTPORT PORTD
+#define S0EBIT 7
+
+#define S0SPIN A0
+#define S0SOUTPORT PORTF
+#define S0SBIT 0
+
+#define S0DPIN A1
+#define S0DOUTPORT PORTF
+#define S0DBIT 1
+// RAMPS Y
+#define S1EPIN A2
+#define S1EINPORT PINF
+#define S1EOUTPORT PORTF
+#define S1EBIT 2
+
+#define S1SPIN A6
+#define S1SOUTPORT PORTF
+#define S1SBIT 6
+
+#define S1DPIN A7
+#define S1DOUTPORT PORTF
+#define S1DBIT 7
+// RAMPS Z
+#define S2EPIN A8
+#define S2EINPORT PINK
+#define S2EOUTPORT PORTK
+#define S2EBIT 0
+
+#define S2SPIN 46
+#define S2SOUTPORT PORTL
+#define S2SBIT 3
+
+#define S2DPIN 48
+#define S2DOUTPORT PORTL
+#define S2DBIT 1
+
+
+
+#define CLEAR(z) z ## OUTPORT &= 255 - (1 << z ## BIT)
+#define SET(z) z ## OUTPORT |= 1 << z ## BIT
+
+#define STEPIT(x,y) if (x ## INPORT & 1 << x ## BIT  ) {SET(y); } else { CLEAR(y); } 
+#define SETUPPIN(x) pinMode(x ## EPIN, OUTPUT);pinMode(x ## SPIN, OUTPUT);pinMode(x ## DPIN, OUTPUT)
+
+#define PLOOP (x) while(x ## EOUTPORT & 1 << x ## EBIT) { STEPIT(AS , x ## S); STEPIT(AD , x ## D); }
