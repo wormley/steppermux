@@ -114,11 +114,13 @@ SETUPPIN(S4);
 };
 void loop() {
     setjmp(back_to_loop);
-    for(;;){
+    MAINLOOP: for(;;){
         interrupts();
 PLOOPBINV(S0);
 PLOOPB(S1);
 PLOOP(S2);
+PLOOPC(S3);
+PLOOPCINV(S4);
     };
 
 };

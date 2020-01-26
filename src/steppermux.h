@@ -61,13 +61,19 @@ unsigned char dir[] = {A1,A7,48,28,34,0,0,0};
 #define CLEAR(z) GET_PORTR(GET_PIN(z)) &= 255 - (1 << GET_BIT(GET_PIN(z)))
 #define SET(z) GET_PORTR(GET_PIN(z)) |= 1 << GET_BIT(GET_PIN(z))
 
+#define CHECKPIN(z) GET_PINR(GET_PIN(z)) & ~( 1 << GET_BIT(GET_PIN(z)) )
+#define CHECKPORT(z) GET_PORTR(GET_PIN(z)) & ~( 1 << GET_BIT(GET_PIN(z)) )
+
 #define STEPIT(x,y) if (x ## INPORT & 1 << x ## BIT  ) {SET(y); } else { CLEAR(y); } 
 #define STEPITINV(x,y) if (x ## INPORT & 1 << x ## BIT  ) {CLEAR(y); } else { SET(y); } 
 #define SETUPPIN(x) pinMode(x ## EPIN, OUTPUT);pinMode(x ## SPIN, OUTPUT);pinMode(x ## DPIN, OUTPUT)
 // While the input is high, wait, when it goes low, clear the bit and wait for it to go high
 // then set the bit, lather, rinse, repeat
-#define STEPITB(x,y) while (x ## INPORT & 1 << x ## BIT) {}; CLEAR(x); while (!(x ## INPORT & 1 << x ## BIT)) {}; SET(x);
-#define STEPITBINV(x,y) while (x ## INPORT & 1 << x ## BIT) {}; SET(x); while (!(x ## INPORT & 1 << x ## BIT)) {}; CLEAR(x);
+#define STEPITB(x,y) while (x ## INPORT & 1 << x ## BIT) {}; CLEAR(y); while (!(x ## INPORT & 1 << x ## BIT)) {}; SET(y);
+#define STEPITBINV(x,y) while (x ## INPORT & 1 << x ## BIT) {}; SET(y); while (!(x ## INPORT & 1 << x ## BIT)) {}; CLEAR(y);
+// Test adding a check for enable here
+#define STEPITC(x,y,z) while (x ## INPORT & 1 << x ## BIT) {if (! CHECKPORT(z)) goto MAINLOOP; }; CLEAR(y); while (!(x ## INPORT & 1 << x ## BIT)) {if (!CHECKPORT(z)) goto MAINLOOP; }; SET(y);
+#define STEPITCINV(x,y,z) while (x ## INPORT & 1 << x ## BIT) {if (! CHECKPORT(z)) goto MAINLOOP; }; SET(y); while (!(x ## INPORT & 1 << x ## BIT)) {if (!CHECKPORT(z)) goto MAINLOOP; }; CLEAR(y);
 
 
 #define PLOOP(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) for(;;) { STEPIT(AS , x ## S);}
@@ -75,3 +81,5 @@ unsigned char dir[] = {A1,A7,48,28,34,0,0,0};
 
 #define PLOOPB(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) {STEPIT(AS,x ## S); for(;;) { STEPITB(AS , x ## S);}}
 #define PLOOPBINV(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) { STEPITINV(AS, x ## S); for(;;) { STEPITBINV(AS , x ## S);} }
+#define PLOOPC(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) {STEPIT(AS,x ## S); for(;;) { STEPITC(AS , x ## S, x ## E);}}
+#define PLOOPCINV(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) { STEPITINV(AS, x ## S); for(;;) { STEPITCINV(AS , x ## S, x ## E);} }
