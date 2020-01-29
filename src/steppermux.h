@@ -25,7 +25,6 @@
 // the ISR sets enable, then the main loop 
 // notices and sends steps to that device
 unsigned char ena[] = {38,A2,A8,24,30,0,0,0};
-unsigned char dir[] = {A1,A7,48,28,34,0,0,0};
 
 // RAMPS X 
 #define S0EPIN 38
@@ -61,6 +60,14 @@ unsigned char dir[] = {A1,A7,48,28,34,0,0,0};
 #define CLEAR(z) GET_PORTR(GET_PIN(z)) &= 255 - (1 << GET_BIT(GET_PIN(z)))
 #define SET(z) GET_PORTR(GET_PIN(z)) |= 1 << GET_BIT(GET_PIN(z))
 
+// Not all ports are in the 0-31 IO range being able to do set/clear bit
+// in a single instruction. So disable interrupts here to be sure
+// we don't accidentally get a direction change while we're in a 
+// Read-Modify-Write bit of code.
+// Just a waste of time when it's a single instruction, sigh.
+#define CLEARI(z) __asm__ __volatile__ ("cli" ::) ; GET_PORTR(GET_PIN(z)) &= 255 - (1 << GET_BIT(GET_PIN(z))) ; __asm__ __volatile__ ("sei" ::)
+#define SETI(z) __asm__ __volatile__ ("cli" ::) ; GET_PORTR(GET_PIN(z)) |= 1 << GET_BIT(GET_PIN(z)) ; __asm__ __volatile__ ("sei" ::)
+
 #define CHECKPIN(z) GET_PINR(GET_PIN(z)) & ~( 1 << GET_BIT(GET_PIN(z)) )
 #define CHECKPORT(z) GET_PORTR(GET_PIN(z)) & ~( 1 << GET_BIT(GET_PIN(z)) )
 
@@ -69,17 +76,12 @@ unsigned char dir[] = {A1,A7,48,28,34,0,0,0};
 #define SETUPPIN(x) pinMode(x ## EPIN, OUTPUT);pinMode(x ## SPIN, OUTPUT);pinMode(x ## DPIN, OUTPUT)
 // While the input is high, wait, when it goes low, clear the bit and wait for it to go high
 // then set the bit, lather, rinse, repeat
-#define STEPITB(x,y) while (x ## INPORT & 1 << x ## BIT) {}; CLEAR(y); while (!(x ## INPORT & 1 << x ## BIT)) {}; SET(y);
-#define STEPITBINV(x,y) while (x ## INPORT & 1 << x ## BIT) {}; SET(y); while (!(x ## INPORT & 1 << x ## BIT)) {}; CLEAR(y);
-// Test adding a check for enable here
-#define STEPITC(x,y,z) while (x ## INPORT & 1 << x ## BIT) {if (! CHECKPORT(z)) goto MAINLOOP; }; CLEAR(y); while (!(x ## INPORT & 1 << x ## BIT)) {if (!CHECKPORT(z)) goto MAINLOOP; }; SET(y);
-#define STEPITCINV(x,y,z) while (x ## INPORT & 1 << x ## BIT) {if (! CHECKPORT(z)) goto MAINLOOP; }; SET(y); while (!(x ## INPORT & 1 << x ## BIT)) {if (!CHECKPORT(z)) goto MAINLOOP; }; CLEAR(y);
+#define STEPITB(x,y) while (x ## INPORT & 1 << x ## BIT) {}; CLEARI(y); while (!(x ## INPORT & 1 << x ## BIT)) {}; SET(y);
+#define STEPITBINV(x,y) while (x ## INPORT & 1 << x ## BIT) {}; SETI(y); while (!(x ## INPORT & 1 << x ## BIT)) {}; CLEAR(y);
 
 
-#define PLOOP(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) for(;;) { STEPIT(AS , x ## S);}
-#define PLOOPINV(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) for(;;) { STEPITINV(AS , x ## S);}
+#define PLOOP(x) if(!(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E)))) for(;;) { STEPIT(AS , x ## S);}
+#define PLOOPINV(x) if(!(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E)))) for(;;) { STEPITINV(AS , x ## S);}
 
-#define PLOOPB(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) {STEPIT(AS,x ## S); for(;;) { STEPITB(AS , x ## S);}}
-#define PLOOPBINV(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) { STEPITINV(AS, x ## S); for(;;) { STEPITBINV(AS , x ## S);} }
-#define PLOOPC(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) {STEPIT(AS,x ## S); for(;;) { STEPITC(AS , x ## S, x ## E);}}
-#define PLOOPCINV(x) if(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E))) { STEPITINV(AS, x ## S); for(;;) { STEPITCINV(AS , x ## S, x ## E);} }
+#define PLOOPB(x) if(!(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E)))) {STEPIT(AS,x ## S); for(;;) { STEPITB(AS , x ## S);}}
+#define PLOOPBINV(x) if(!(GET_PORTR(GET_PIN(x ## E)) & 1 << GET_BIT(GET_PIN(x ## E)))) { STEPITINV(AS, x ## S); for(;;) { STEPITBINV(AS , x ## S);} }

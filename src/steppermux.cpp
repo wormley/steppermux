@@ -9,9 +9,25 @@ int main(){
     for(;;) loop();
     return(0);
 };
-// TODO
-// Startup init for enable
-// Change for init for direction
+volatile void Nothing() {};
+
+volatile void S0Dchange() {
+    STEPIT(AD,S0D);
+};
+volatile void S1Dchange() {
+    STEPIT(AD,S1D);
+};
+volatile void S2Dchange() {
+    STEPIT(AD,S2D);
+};
+volatile void S3Dchange() {
+    STEPIT(AD,S3D);
+};
+volatile void S4Dchange() {
+    STEPIT(AD,S4D);
+};
+volatile void (*dir[])()= {S0Dchange,S1Dchange,S2Dchange,S3Dchange,S4Dchange,Nothing,Nothing,Nothing};
+volatile void (*selectedfunc)() = Nothing;
 
 
 void unsafedigitalWrite(uint8_t pin, uint8_t val)
@@ -42,49 +58,58 @@ void pciSetupDirection()
     PCIFR  |= 1 << ADPCICRBIT; // clear any outstanding interrupt
     PCICR  |= 1 << ADPCICRBIT; // enable interrupt for the group
 }
- void stepperchange() {
+
+ void inline stepperchange() {
 
     // We do this the lazy way
     // Clear all pending interrupts, we check all bits and don't care
     // if multiple pins changed
     PCIFR = 255;
-    // globally clear enable
+    // globally clear enable(well, set, Enable is active Low)
     // The main loop will properly handle this... maybe
-    CLEAR(S0E);
-    CLEAR(S1E);
-    CLEAR(S2E);
-    CLEAR(S3E);
-    CLEAR(S4E);
+    SET(S0E);
+    SET(S1E);
+    SET(S2E);
+    SET(S3E);
+    SET(S4E);
     // Not enabled, exit now
-    if ( ! unsafedigitalRead(AEPIN) ) {selected=-1 ; longjmp(back_to_loop,1); }
+    if ( unsafedigitalRead(AEPIN) ) {selected=-1 ;selectedfunc = Nothing; return; }
     // enable on the one wanted port
 selected = unsafedigitalRead(A0PIN) + (unsafedigitalRead(A1PIN) << 1) + (unsafedigitalRead(A2PIN) << 2);
-    if (ena[selected] != 0 ) unsafedigitalWrite(ena[selected],1);
+    if (ena[selected] != 0 ) unsafedigitalWrite(ena[selected],0);
+    selectedfunc=dir[selected];
+    return;
+};
+
+void stepperchangewrap() {
+    stepperchange();
+// Yes, this is an ISR. Yes this is a longjmp() out of an ISR
+// Rather than wasting cycles on a state variable, we force the main
+// loop to effectively 'reset' and re-evaluate which pin it should
+// be updating
     longjmp(back_to_loop,2);
-};
-void dirchange() {
-    if (selected >= 0 && dir[selected] >0 )
-    unsafedigitalWrite(dir[selected],unsafedigitalRead(ADPIN));
-};
+
+}
+
 
 void intSetup(byte pin) {
-attachInterrupt(digitalPinToInterrupt(pin), stepperchange, CHANGE);
+attachInterrupt(digitalPinToInterrupt(pin), stepperchangewrap, CHANGE);
 };
 
 
-ISR (PCINT0_vect) // handle pin change interrupt for D8 to D13 here
- {dirchange();    
-};
+//ISR (PCINT0_vect) 
+// {dirchange();    
+//};
  
-ISR (PCINT1_vect) // handle pin change interrupt for A0 to A5 here
+ISR (PCINT1_vect) 
  {
-     dirchange();
+     (*selectedfunc)();
  } ; 
  
-ISR (PCINT2_vect) // handle pin change interrupt for D0 to D7 here
- {
-     dirchange();
- };  
+//ISR (PCINT2_vect)
+// {
+//     dirchange();
+// };  
 
 
 void setup() {
@@ -111,16 +136,35 @@ SETUPPIN(S2);
 SETUPPIN(S3);
 SETUPPIN(S4);
 
+
+TIMSK0=0;
+TIMSK1=0;
+TIMSK2=0;
+TIMSK3=0;
+TIMSK4=0;
+TIMSK5=0;
 };
+
 void loop() {
+// Call stepper change here for initial setup
+    stepperchange();
+
+    // This comes from the motor switch ISR to reset the
+    // loop and re-evaluate the active stepper
     setjmp(back_to_loop);
-    MAINLOOP: for(;;){
+    for(;;){
+// Just in case our setjmp/longjmp doesn't do this
         interrupts();
-PLOOPBINV(S0);
+// Set the direction pin on initial startup or if we
+// were 'reset' due to motor change
+    (*selectedfunc)();
+
+PLOOPB(S0);
 PLOOPB(S1);
-PLOOP(S2);
-PLOOPC(S3);
-PLOOPCINV(S4);
+PLOOPB(S2);
+PLOOPB(S3);
+PLOOPB(S4);
+
     };
 
 };
